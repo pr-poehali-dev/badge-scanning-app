@@ -46,6 +46,17 @@ const INITIAL_THREADS: Record<number, Message[]> = {
   ],
 };
 
+interface Profile {
+  photo: string | null;
+  lastName: string; firstName: string; middleName: string;
+  position: string; company: string; phone: string; email: string;
+}
+
+const EMPTY_PROFILE: Profile = {
+  photo: null, lastName: '', firstName: '', middleName: '',
+  position: '', company: '', phone: '', email: '',
+};
+
 const Index = () => {
   const [active, setActive] = useState<Section>('scan');
   const [scanning, setScanning] = useState(false);
@@ -53,6 +64,7 @@ const Index = () => {
   const [dialogContact, setDialogContact] = useState<Contact | null>(null);
   const [threads, setThreads] = useState<Record<number, Message[]>>(INITIAL_THREADS);
   const [readIds, setReadIds] = useState<Set<number>>(new Set([1]));
+  const [profile, setProfile] = useState<Profile>(EMPTY_PROFILE);
 
   const unreadCount = contacts.filter(
     (c) => threads[c.id] && !readIds.has(c.id)
@@ -161,7 +173,7 @@ const Index = () => {
         </header>
 
         <main className="flex-1 p-6 animate-fade-in" key={active}>
-          {active === 'home' && <HomeView contacts={contacts} />}
+          {active === 'home' && <HomeView contacts={contacts} profile={profile} onProfileChange={setProfile} />}
           {active === 'scan' && (
             <ScanView scanning={scanning} onScan={simulateScan} contacts={contacts} />
           )}
@@ -176,7 +188,7 @@ const Index = () => {
             />
           )}
           {active === 'reports' && <ReportsView contacts={contacts} />}
-          {active === 'profile' && <ProfileView />}
+          {active === 'profile' && <ProfileView profile={profile} onProfileChange={setProfile} />}
           {active === 'settings' && <Placeholder icon="Settings" title="Настройки приложения" />}
         </main>
 
@@ -220,13 +232,27 @@ const Stat = ({ icon, label, value, hint }: { icon: string; label: string; value
   </div>
 );
 
-const HomeView = ({ contacts }: { contacts: Contact[] }) => (
+const HomeView = ({
+  contacts,
+  profile,
+  onProfileChange,
+}: {
+  contacts: Contact[];
+  profile: Profile;
+  onProfileChange: (p: Profile) => void;
+}) => (
   <div className="max-w-5xl mx-auto space-y-6">
-    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-      <Stat icon="Users" label="Собрано контактов" value={String(contacts.length)} hint="За сегодня" />
-      <Stat icon="ScanLine" label="Сканирований" value={String(contacts.length + 3)} hint="Всего сессий" />
-      <Stat icon="Building2" label="Компаний" value="18" hint="Уникальных" />
-      <Stat icon="TrendingUp" label="Конверсия" value="72%" hint="В диалог" />
+    <div className="grid lg:grid-cols-3 gap-6">
+      {/* Профиль участника */}
+      <ProfileCard profile={profile} onProfileChange={onProfileChange} />
+
+      {/* Статистика */}
+      <div className="lg:col-span-2 grid grid-cols-2 gap-4 content-start">
+        <Stat icon="Users" label="Собрано контактов" value={String(contacts.length)} hint="За сегодня" />
+        <Stat icon="ScanLine" label="Сканирований" value={String(contacts.length + 3)} hint="Всего сессий" />
+        <Stat icon="Building2" label="Компаний" value="18" hint="Уникальных" />
+        <Stat icon="TrendingUp" label="Конверсия" value="72%" hint="В диалог" />
+      </div>
     </div>
 
     <div className="bg-card rounded-xl border border-border p-6">
@@ -538,113 +564,108 @@ const DialogsView = ({
   );
 };
 
-const ProfileView = () => {
-  const [photo, setPhoto] = useState<string | null>(null);
-  const [saved, setSaved] = useState(false);
-  const [form, setForm] = useState({
-    lastName: '', firstName: '', middleName: '',
-    position: '', company: '', phone: '', email: '',
-  });
+const ProfileField = ({
+  label, field, placeholder, required = true, type = 'text', profile, onProfileChange,
+}: {
+  label: string; field: keyof Profile; placeholder: string; required?: boolean; type?: string;
+  profile: Profile; onProfileChange: (p: Profile) => void;
+}) => (
+  <div className="flex flex-col gap-1.5">
+    <label className="text-sm font-medium text-foreground">
+      {label}
+      {!required && <span className="ml-1 text-xs text-muted-foreground">(необязательно)</span>}
+    </label>
+    <input
+      type={type}
+      placeholder={placeholder}
+      value={profile[field] as string}
+      onChange={(e) => onProfileChange({ ...profile, [field]: e.target.value })}
+      className="h-10 px-3 rounded-lg border border-border bg-background text-sm outline-none focus:ring-2 focus:ring-accent/40 transition"
+    />
+  </div>
+);
+
+const ProfileCard = ({ profile, onProfileChange }: { profile: Profile; onProfileChange: (p: Profile) => void }) => {
   const fileRef = useRef<HTMLInputElement>(null);
+  const [saved, setSaved] = useState(false);
+
+  const initials = [profile.lastName[0], profile.firstName[0]].filter(Boolean).join('').toUpperCase() || 'УЧ';
+  const fullName = [profile.lastName, profile.firstName, profile.middleName].filter(Boolean).join(' ') || 'Участник';
 
   const handlePhoto = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = () => setPhoto(reader.result as string);
+    reader.onload = () => onProfileChange({ ...profile, photo: reader.result as string });
     reader.readAsDataURL(file);
   };
-
-  const initials = [form.lastName[0], form.firstName[0]].filter(Boolean).join('').toUpperCase() || 'УЧ';
 
   const handleSave = () => {
     setSaved(true);
     setTimeout(() => setSaved(false), 2500);
   };
 
-  const Field = ({
-    label, field, placeholder, required = true, type = 'text',
-  }: {
-    label: string; field: keyof typeof form; placeholder: string; required?: boolean; type?: string;
-  }) => (
-    <div className="flex flex-col gap-1.5">
-      <label className="text-sm font-medium text-foreground">
-        {label}
-        {!required && <span className="ml-1 text-xs text-muted-foreground">(необязательно)</span>}
-      </label>
-      <input
-        type={type}
-        placeholder={placeholder}
-        value={form[field]}
-        onChange={(e) => setForm((p) => ({ ...p, [field]: e.target.value }))}
-        className="h-10 px-3 rounded-lg border border-border bg-background text-sm outline-none focus:ring-2 focus:ring-accent/40 transition"
-      />
-    </div>
-  );
-
   return (
-    <div className="max-w-2xl mx-auto space-y-6">
+    <div className="bg-card rounded-xl border border-border p-6 flex flex-col gap-5">
+      <h3 className="font-display font-semibold text-foreground">Мой профиль</h3>
+
       {/* Фото */}
-      <div className="bg-card rounded-xl border border-border p-6">
-        <h3 className="font-display font-semibold text-foreground mb-5">Фото участника</h3>
-        <div className="flex items-center gap-6">
-          <div
+      <div className="flex items-center gap-4">
+        <div
+          onClick={() => fileRef.current?.click()}
+          className="relative w-16 h-16 rounded-full border-2 border-dashed border-border bg-secondary cursor-pointer hover:border-accent transition-colors flex items-center justify-center overflow-hidden group shrink-0"
+        >
+          {profile.photo ? (
+            <img src={profile.photo} alt="Фото" className="w-full h-full object-cover" />
+          ) : (
+            <span className="font-display font-bold text-lg text-muted-foreground">{initials}</span>
+          )}
+          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+            <Icon name="Camera" size={16} className="text-white" />
+          </div>
+        </div>
+        <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handlePhoto} />
+        <div className="min-w-0">
+          <p className="text-sm font-semibold text-foreground truncate">{fullName}</p>
+          <p className="text-xs text-muted-foreground truncate">{profile.position || 'Должность не указана'}</p>
+          <button
             onClick={() => fileRef.current?.click()}
-            className="relative w-24 h-24 rounded-full border-2 border-dashed border-border bg-secondary cursor-pointer hover:border-accent transition-colors flex items-center justify-center overflow-hidden group"
+            className="text-xs text-accent hover:underline mt-1"
           >
-            {photo ? (
-              <img src={photo} alt="Фото" className="w-full h-full object-cover" />
-            ) : (
-              <span className="font-display font-bold text-2xl text-muted-foreground">{initials}</span>
-            )}
-            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-              <Icon name="Camera" size={22} className="text-white" />
-            </div>
-          </div>
-          <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handlePhoto} />
-          <div>
-            <Button variant="outline" size="sm" className="gap-2 mb-2" onClick={() => fileRef.current?.click()}>
-              <Icon name="Upload" size={16} /> Загрузить фото
-            </Button>
-            <p className="text-xs text-muted-foreground">JPG или PNG, не более 5 МБ</p>
-            {photo && (
-              <button
-                onClick={() => setPhoto(null)}
-                className="text-xs text-destructive mt-1 hover:underline"
-              >
-                Удалить фото
-              </button>
-            )}
-          </div>
+            {profile.photo ? 'Изменить фото' : 'Загрузить фото'}
+          </button>
         </div>
       </div>
 
-      {/* Данные */}
-      <div className="bg-card rounded-xl border border-border p-6">
-        <h3 className="font-display font-semibold text-foreground mb-5">Личные данные</h3>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Field label="Фамилия" field="lastName" placeholder="Иванов" />
-          <Field label="Имя" field="firstName" placeholder="Иван" />
-          <div className="sm:col-span-2">
-            <Field label="Отчество" field="middleName" placeholder="Иванович" required={false} />
-          </div>
-          <Field label="Должность" field="position" placeholder="Руководитель отдела" />
-          <Field label="Название компании" field="company" placeholder="ООО «Лакокрас»" />
-          <Field label="Телефон" field="phone" placeholder="+7 (900) 000-00-00" type="tel" />
-          <Field label="Электронный адрес" field="email" placeholder="ivanov@company.ru" type="email" />
+      {/* Поля */}
+      <div className="grid grid-cols-1 gap-3">
+        <div className="grid grid-cols-2 gap-3">
+          <ProfileField label="Фамилия" field="lastName" placeholder="Иванов" profile={profile} onProfileChange={onProfileChange} />
+          <ProfileField label="Имя" field="firstName" placeholder="Иван" profile={profile} onProfileChange={onProfileChange} />
         </div>
+        <ProfileField label="Отчество" field="middleName" placeholder="Иванович" required={false} profile={profile} onProfileChange={onProfileChange} />
+        <ProfileField label="Должность" field="position" placeholder="Руководитель отдела" profile={profile} onProfileChange={onProfileChange} />
+        <ProfileField label="Компания" field="company" placeholder="ООО «Лакокрас»" profile={profile} onProfileChange={onProfileChange} />
+        <ProfileField label="Телефон" field="phone" placeholder="+7 (900) 000-00-00" type="tel" profile={profile} onProfileChange={onProfileChange} />
+        <ProfileField label="E-mail" field="email" placeholder="ivanov@company.ru" type="email" profile={profile} onProfileChange={onProfileChange} />
+      </div>
 
-        <div className="mt-6 flex items-center gap-3">
-          <Button onClick={handleSave} className="bg-primary text-primary-foreground hover:bg-primary/90 gap-2">
-            <Icon name={saved ? 'Check' : 'Save'} size={16} />
-            {saved ? 'Сохранено' : 'Сохранить'}
-          </Button>
-          {saved && <span className="text-sm text-muted-foreground animate-fade-in">Данные успешно обновлены</span>}
-        </div>
+      <div className="flex items-center gap-3">
+        <Button onClick={handleSave} size="sm" className="bg-primary text-primary-foreground hover:bg-primary/90 gap-2">
+          <Icon name={saved ? 'Check' : 'Save'} size={15} />
+          {saved ? 'Сохранено' : 'Сохранить'}
+        </Button>
+        {saved && <span className="text-xs text-muted-foreground animate-fade-in">Данные обновлены</span>}
       </div>
     </div>
   );
 };
+
+const ProfileView = ({ profile, onProfileChange }: { profile: Profile; onProfileChange: (p: Profile) => void }) => (
+  <div className="max-w-2xl mx-auto">
+    <ProfileCard profile={profile} onProfileChange={onProfileChange} />
+  </div>
+);
 
 const Placeholder = ({ icon, title }: { icon: string; title: string }) => (
   <div className="max-w-5xl mx-auto bg-card rounded-xl border border-border p-16 flex flex-col items-center justify-center text-center">
