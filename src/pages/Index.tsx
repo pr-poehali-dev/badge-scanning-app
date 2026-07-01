@@ -119,14 +119,12 @@ const Index = () => {
     <div className="min-h-screen bg-background flex">
       {/* Sidebar */}
       <aside className="hidden lg:flex w-64 flex-col bg-primary text-primary-foreground p-6 sticky top-0 h-screen">
-        <div className="flex items-center gap-3 mb-10">
-          <div className="w-10 h-10 rounded-lg bg-accent flex items-center justify-center">
-            <Icon name="QrCode" size={22} className="text-white" />
-          </div>
-          <div>
-            <p className="font-display font-bold text-lg leading-none">BadgeScan</p>
-            <p className="text-xs text-primary-foreground/60 mt-1">Enterprise Edition</p>
-          </div>
+        <div className="mb-8 px-1">
+          <img
+            src="https://cdn.poehali.dev/projects/e53c8560-39e7-4b8f-bd8c-5898c960f106/bucket/7d037700-7288-4857-a63b-ef565a0fab06.jpg"
+            alt="Рынки лакокрасочных материалов и сырья для ЛКМ"
+            className="w-full rounded-lg bg-white p-2"
+          />
         </div>
 
         <nav className="flex flex-col gap-1 flex-1">
