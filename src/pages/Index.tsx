@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import Icon from '@/components/ui/icon';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -124,7 +124,7 @@ const Index = () => {
           )}
           {active === 'contacts' && <ContactsView contacts={contacts} />}
           {active === 'reports' && <ReportsView contacts={contacts} />}
-          {active === 'profile' && <Placeholder icon="User" title="Профиль участника" />}
+          {active === 'profile' && <ProfileView />}
           {active === 'settings' && <Placeholder icon="Settings" title="Настройки приложения" />}
         </main>
 
@@ -299,6 +299,114 @@ const ContactRow = ({ c }: { c: Contact }) => (
     <Icon name="ChevronRight" size={16} className="text-muted-foreground shrink-0" />
   </div>
 );
+
+const ProfileView = () => {
+  const [photo, setPhoto] = useState<string | null>(null);
+  const [saved, setSaved] = useState(false);
+  const [form, setForm] = useState({
+    lastName: '', firstName: '', middleName: '',
+    position: '', company: '', phone: '', email: '',
+  });
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  const handlePhoto = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => setPhoto(reader.result as string);
+    reader.readAsDataURL(file);
+  };
+
+  const initials = [form.lastName[0], form.firstName[0]].filter(Boolean).join('').toUpperCase() || 'УЧ';
+
+  const handleSave = () => {
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2500);
+  };
+
+  const Field = ({
+    label, field, placeholder, required = true, type = 'text',
+  }: {
+    label: string; field: keyof typeof form; placeholder: string; required?: boolean; type?: string;
+  }) => (
+    <div className="flex flex-col gap-1.5">
+      <label className="text-sm font-medium text-foreground">
+        {label}
+        {!required && <span className="ml-1 text-xs text-muted-foreground">(необязательно)</span>}
+      </label>
+      <input
+        type={type}
+        placeholder={placeholder}
+        value={form[field]}
+        onChange={(e) => setForm((p) => ({ ...p, [field]: e.target.value }))}
+        className="h-10 px-3 rounded-lg border border-border bg-background text-sm outline-none focus:ring-2 focus:ring-accent/40 transition"
+      />
+    </div>
+  );
+
+  return (
+    <div className="max-w-2xl mx-auto space-y-6">
+      {/* Фото */}
+      <div className="bg-card rounded-xl border border-border p-6">
+        <h3 className="font-display font-semibold text-foreground mb-5">Фото участника</h3>
+        <div className="flex items-center gap-6">
+          <div
+            onClick={() => fileRef.current?.click()}
+            className="relative w-24 h-24 rounded-full border-2 border-dashed border-border bg-secondary cursor-pointer hover:border-accent transition-colors flex items-center justify-center overflow-hidden group"
+          >
+            {photo ? (
+              <img src={photo} alt="Фото" className="w-full h-full object-cover" />
+            ) : (
+              <span className="font-display font-bold text-2xl text-muted-foreground">{initials}</span>
+            )}
+            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+              <Icon name="Camera" size={22} className="text-white" />
+            </div>
+          </div>
+          <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handlePhoto} />
+          <div>
+            <Button variant="outline" size="sm" className="gap-2 mb-2" onClick={() => fileRef.current?.click()}>
+              <Icon name="Upload" size={16} /> Загрузить фото
+            </Button>
+            <p className="text-xs text-muted-foreground">JPG или PNG, не более 5 МБ</p>
+            {photo && (
+              <button
+                onClick={() => setPhoto(null)}
+                className="text-xs text-destructive mt-1 hover:underline"
+              >
+                Удалить фото
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Данные */}
+      <div className="bg-card rounded-xl border border-border p-6">
+        <h3 className="font-display font-semibold text-foreground mb-5">Личные данные</h3>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <Field label="Фамилия" field="lastName" placeholder="Иванов" />
+          <Field label="Имя" field="firstName" placeholder="Иван" />
+          <div className="sm:col-span-2">
+            <Field label="Отчество" field="middleName" placeholder="Иванович" required={false} />
+          </div>
+          <Field label="Должность" field="position" placeholder="Руководитель отдела" />
+          <Field label="Название компании" field="company" placeholder="ООО «Лакокрас»" />
+          <Field label="Телефон" field="phone" placeholder="+7 (900) 000-00-00" type="tel" />
+          <Field label="Электронный адрес" field="email" placeholder="ivanov@company.ru" type="email" />
+        </div>
+
+        <div className="mt-6 flex items-center gap-3">
+          <Button onClick={handleSave} className="bg-primary text-primary-foreground hover:bg-primary/90 gap-2">
+            <Icon name={saved ? 'Check' : 'Save'} size={16} />
+            {saved ? 'Сохранено' : 'Сохранить'}
+          </Button>
+          {saved && <span className="text-sm text-muted-foreground animate-fade-in">Данные успешно обновлены</span>}
+        </div>
+      </div>
+    </div>
+  );
+};
 
 const Placeholder = ({ icon, title }: { icon: string; title: string }) => (
   <div className="max-w-5xl mx-auto bg-card rounded-xl border border-border p-16 flex flex-col items-center justify-center text-center">
