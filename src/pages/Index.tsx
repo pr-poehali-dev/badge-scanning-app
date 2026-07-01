@@ -1,4 +1,5 @@
 import { useState, useRef } from 'react';
+import * as XLSX from 'xlsx';
 import Icon from '@/components/ui/icon';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -77,6 +78,23 @@ const Index = () => {
 
   const markRead = (contactId: number) => {
     setReadIds((prev) => new Set([...prev, contactId]));
+  };
+
+  const exportToExcel = () => {
+    const rows = contacts.map((c) => ({
+      'Дата сканирования': c.time,
+      'Фамилия': c.name.split(' ')[0] ?? '',
+      'Имя': c.name.split(' ')[1] ?? '',
+      'Компания': c.company,
+      'Должность': c.role,
+      'Телефон': '',
+      'Электронная почта': c.email,
+    }));
+    const ws = XLSX.utils.json_to_sheet(rows);
+    ws['!cols'] = [16, 18, 18, 22, 22, 18, 28].map((w) => ({ wch: w }));
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Контакты');
+    XLSX.writeFile(wb, 'Контакты_ЛКМ_конференция.xlsx');
   };
 
   const simulateScan = () => {
@@ -161,7 +179,7 @@ const Index = () => {
             <p className="text-xs text-muted-foreground">Рынки лакокрасочных материалов и сырья для ЛКМ · Сочи</p>
           </div>
           <div className="flex items-center gap-3">
-            <Button variant="outline" size="sm" className="gap-2">
+            <Button variant="outline" size="sm" className="gap-2" onClick={exportToExcel}>
               <Icon name="Download" size={16} />
               <span className="hidden sm:inline">Экспорт</span>
             </Button>
@@ -177,7 +195,7 @@ const Index = () => {
           {active === 'scan' && (
             <ScanView scanning={scanning} onScan={simulateScan} contacts={contacts} />
           )}
-          {active === 'contacts' && <ContactsView contacts={contacts} onMessage={openDialog} />}
+          {active === 'contacts' && <ContactsView contacts={contacts} onMessage={openDialog} onExport={exportToExcel} />}
           {active === 'dialogs' && (
             <DialogsView
               contacts={contacts}
@@ -322,7 +340,15 @@ const ScanView = ({
   </div>
 );
 
-const ContactsView = ({ contacts, onMessage }: { contacts: Contact[]; onMessage: (c: Contact) => void }) => {
+const ContactsView = ({
+  contacts,
+  onMessage,
+  onExport,
+}: {
+  contacts: Contact[];
+  onMessage: (c: Contact) => void;
+  onExport: () => void;
+}) => {
   const [query, setQuery] = useState('');
   const filtered = contacts.filter(
     (c) =>
@@ -343,6 +369,10 @@ const ContactsView = ({ contacts, onMessage }: { contacts: Contact[]; onMessage:
         </div>
         <Button variant="outline" size="sm" className="gap-2">
           <Icon name="SlidersHorizontal" size={16} /> Фильтры
+        </Button>
+        <Button size="sm" className="gap-2 bg-primary text-primary-foreground hover:bg-primary/90" onClick={onExport}>
+          <Icon name="FileSpreadsheet" size={16} />
+          <span className="hidden sm:inline">Выгрузить в Excel</span>
         </Button>
       </div>
       <div className="divide-y divide-border">
