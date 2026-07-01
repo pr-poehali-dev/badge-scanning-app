@@ -43,6 +43,12 @@ const Index = () => {
   const [active, setActive] = useState<Section>('scan');
   const [scanning, setScanning] = useState(false);
   const [contacts, setContacts] = useState<Contact[]>(MOCK);
+  const [dialogContact, setDialogContact] = useState<Contact | null>(null);
+
+  const openDialog = (c: Contact) => {
+    setDialogContact(c);
+    setActive('dialogs');
+  };
 
   const simulateScan = () => {
     setScanning(true);
@@ -130,8 +136,8 @@ const Index = () => {
           {active === 'scan' && (
             <ScanView scanning={scanning} onScan={simulateScan} contacts={contacts} />
           )}
-          {active === 'contacts' && <ContactsView contacts={contacts} />}
-          {active === 'dialogs' && <DialogsView contacts={contacts} />}
+          {active === 'contacts' && <ContactsView contacts={contacts} onMessage={openDialog} />}
+          {active === 'dialogs' && <DialogsView contacts={contacts} initialContact={dialogContact} />}
           {active === 'reports' && <ReportsView contacts={contacts} />}
           {active === 'profile' && <ProfileView />}
           {active === 'settings' && <Placeholder icon="Settings" title="Настройки приложения" />}
@@ -246,27 +252,40 @@ const ScanView = ({
   </div>
 );
 
-const ContactsView = ({ contacts }: { contacts: Contact[] }) => (
-  <div className="max-w-5xl mx-auto bg-card rounded-xl border border-border overflow-hidden">
-    <div className="p-5 border-b border-border flex items-center gap-3">
-      <div className="relative flex-1">
-        <Icon name="Search" size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-        <input
-          placeholder="Поиск по имени или компании…"
-          className="w-full h-10 pl-9 pr-3 rounded-lg border border-border bg-background text-sm outline-none focus:ring-2 focus:ring-accent/40"
-        />
+const ContactsView = ({ contacts, onMessage }: { contacts: Contact[]; onMessage: (c: Contact) => void }) => {
+  const [query, setQuery] = useState('');
+  const filtered = contacts.filter(
+    (c) =>
+      c.name.toLowerCase().includes(query.toLowerCase()) ||
+      c.company.toLowerCase().includes(query.toLowerCase()),
+  );
+  return (
+    <div className="max-w-5xl mx-auto bg-card rounded-xl border border-border overflow-hidden">
+      <div className="p-5 border-b border-border flex items-center gap-3">
+        <div className="relative flex-1">
+          <Icon name="Search" size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+          <input
+            placeholder="Поиск по имени или компании…"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            className="w-full h-10 pl-9 pr-3 rounded-lg border border-border bg-background text-sm outline-none focus:ring-2 focus:ring-accent/40"
+          />
+        </div>
+        <Button variant="outline" size="sm" className="gap-2">
+          <Icon name="SlidersHorizontal" size={16} /> Фильтры
+        </Button>
       </div>
-      <Button variant="outline" size="sm" className="gap-2">
-        <Icon name="SlidersHorizontal" size={16} /> Фильтры
-      </Button>
+      <div className="divide-y divide-border">
+        {filtered.length === 0 && (
+          <p className="text-sm text-muted-foreground text-center py-10">Контакты не найдены</p>
+        )}
+        {filtered.map((c) => (
+          <ContactRow key={c.id} c={c} onMessage={() => onMessage(c)} />
+        ))}
+      </div>
     </div>
-    <div className="divide-y divide-border">
-      {contacts.map((c) => (
-        <ContactRow key={c.id} c={c} />
-      ))}
-    </div>
-  </div>
-);
+  );
+};
 
 const ReportsView = ({ contacts }: { contacts: Contact[] }) => (
   <div className="max-w-5xl mx-auto space-y-6">
@@ -290,8 +309,8 @@ const ReportsView = ({ contacts }: { contacts: Contact[] }) => (
   </div>
 );
 
-const ContactRow = ({ c }: { c: Contact }) => (
-  <div className="flex items-center gap-4 py-3">
+const ContactRow = ({ c, onMessage }: { c: Contact; onMessage?: () => void }) => (
+  <div className="flex items-center gap-4 py-3 group">
     <div className="w-10 h-10 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-sm font-semibold shrink-0">
       {c.initials}
     </div>
@@ -305,12 +324,24 @@ const ContactRow = ({ c }: { c: Contact }) => (
       <p className="text-xs text-muted-foreground">{c.email}</p>
       <p className="text-[11px] text-muted-foreground/70">{c.time}</p>
     </div>
-    <Icon name="ChevronRight" size={16} className="text-muted-foreground shrink-0" />
+    {onMessage ? (
+      <Button
+        size="sm"
+        variant="outline"
+        className="gap-1.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
+        onClick={onMessage}
+      >
+        <Icon name="MessageSquare" size={14} />
+        <span className="hidden sm:inline text-xs">Написать</span>
+      </Button>
+    ) : (
+      <Icon name="ChevronRight" size={16} className="text-muted-foreground shrink-0" />
+    )}
   </div>
 );
 
-const DialogsView = ({ contacts }: { contacts: Contact[] }) => {
-  const [selected, setSelected] = useState<Contact | null>(contacts[0] ?? null);
+const DialogsView = ({ contacts, initialContact }: { contacts: Contact[]; initialContact?: Contact | null }) => {
+  const [selected, setSelected] = useState<Contact | null>(initialContact ?? contacts[0] ?? null);
   const [threads, setThreads] = useState<Record<number, Message[]>>({
     1: [
       { id: 1, from: 'them', text: 'Добрый день! Рад был познакомиться на конференции.', time: '10:26' },
