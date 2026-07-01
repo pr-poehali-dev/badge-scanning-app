@@ -3,7 +3,14 @@ import Icon from '@/components/ui/icon';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 
-type Section = 'home' | 'scan' | 'contacts' | 'reports' | 'profile' | 'settings';
+type Section = 'home' | 'scan' | 'contacts' | 'dialogs' | 'reports' | 'profile' | 'settings';
+
+interface Message {
+  id: number;
+  from: 'me' | 'them';
+  text: string;
+  time: string;
+}
 
 interface Contact {
   id: number;
@@ -19,6 +26,7 @@ const NAV: { id: Section; label: string; icon: string }[] = [
   { id: 'home', label: 'Главная', icon: 'LayoutDashboard' },
   { id: 'scan', label: 'Сканирование', icon: 'ScanLine' },
   { id: 'contacts', label: 'Контакты', icon: 'Users' },
+  { id: 'dialogs', label: 'Диалоги', icon: 'MessageSquare' },
   { id: 'reports', label: 'Отчёты', icon: 'BarChart3' },
   { id: 'profile', label: 'Профиль', icon: 'User' },
   { id: 'settings', label: 'Настройки', icon: 'Settings' },
@@ -123,6 +131,7 @@ const Index = () => {
             <ScanView scanning={scanning} onScan={simulateScan} contacts={contacts} />
           )}
           {active === 'contacts' && <ContactsView contacts={contacts} />}
+          {active === 'dialogs' && <DialogsView contacts={contacts} />}
           {active === 'reports' && <ReportsView contacts={contacts} />}
           {active === 'profile' && <ProfileView />}
           {active === 'settings' && <Placeholder icon="Settings" title="Настройки приложения" />}
@@ -299,6 +308,148 @@ const ContactRow = ({ c }: { c: Contact }) => (
     <Icon name="ChevronRight" size={16} className="text-muted-foreground shrink-0" />
   </div>
 );
+
+const DialogsView = ({ contacts }: { contacts: Contact[] }) => {
+  const [selected, setSelected] = useState<Contact | null>(contacts[0] ?? null);
+  const [threads, setThreads] = useState<Record<number, Message[]>>({
+    1: [
+      { id: 1, from: 'them', text: 'Добрый день! Рад был познакомиться на конференции.', time: '10:26' },
+      { id: 2, from: 'me', text: 'Взаимно! Очень интересный доклад по ЛКМ-рынку.', time: '10:31' },
+    ],
+  });
+  const [text, setText] = useState('');
+  const bottomRef = useRef<HTMLDivElement>(null);
+
+  const messages = selected ? threads[selected.id] ?? [] : [];
+
+  const send = () => {
+    if (!selected || !text.trim()) return;
+    const now = new Date();
+    const msg: Message = {
+      id: Date.now(),
+      from: 'me',
+      text: text.trim(),
+      time: `${now.getHours()}:${String(now.getMinutes()).padStart(2, '0')}`,
+    };
+    setThreads((prev) => ({
+      ...prev,
+      [selected.id]: [...(prev[selected.id] ?? []), msg],
+    }));
+    setText('');
+    setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
+  };
+
+  return (
+    <div className="max-w-5xl mx-auto h-[calc(100vh-10rem)] flex rounded-xl border border-border overflow-hidden bg-card">
+      {/* Список контактов */}
+      <div className="w-72 shrink-0 border-r border-border flex flex-col">
+        <div className="p-4 border-b border-border">
+          <p className="font-display font-semibold text-sm text-foreground">Контакты</p>
+          <p className="text-xs text-muted-foreground mt-0.5">{contacts.length} участников</p>
+        </div>
+        <div className="flex-1 overflow-y-auto">
+          {contacts.map((c) => {
+            const last = threads[c.id]?.at(-1);
+            const unread = !threads[c.id];
+            return (
+              <button
+                key={c.id}
+                onClick={() => setSelected(c)}
+                className={`w-full flex items-center gap-3 px-4 py-3 text-left border-b border-border/50 transition-colors ${
+                  selected?.id === c.id ? 'bg-secondary' : 'hover:bg-secondary/50'
+                }`}
+              >
+                <div className="w-10 h-10 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-sm font-semibold shrink-0">
+                  {c.initials}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center justify-between gap-1">
+                    <p className="text-sm font-medium text-foreground truncate">{c.name}</p>
+                    {last && <span className="text-[10px] text-muted-foreground shrink-0">{last.time}</span>}
+                  </div>
+                  <p className="text-xs text-muted-foreground truncate">
+                    {last ? (last.from === 'me' ? `Вы: ${last.text}` : last.text) : c.company}
+                  </p>
+                </div>
+                {unread && (
+                  <span className="w-2 h-2 rounded-full bg-accent shrink-0" />
+                )}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Чат */}
+      {selected ? (
+        <div className="flex-1 flex flex-col min-w-0">
+          {/* Шапка чата */}
+          <div className="h-14 border-b border-border px-5 flex items-center gap-3">
+            <div className="w-9 h-9 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-sm font-semibold shrink-0">
+              {selected.initials}
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-foreground">{selected.name}</p>
+              <p className="text-xs text-muted-foreground">{selected.role} · {selected.company}</p>
+            </div>
+          </div>
+
+          {/* Сообщения */}
+          <div className="flex-1 overflow-y-auto p-5 space-y-3">
+            {messages.length === 0 && (
+              <div className="flex flex-col items-center justify-center h-full text-center">
+                <div className="w-12 h-12 rounded-full bg-secondary flex items-center justify-center mb-3">
+                  <Icon name="MessageSquare" size={22} className="text-muted-foreground" />
+                </div>
+                <p className="text-sm text-muted-foreground">Начните диалог с {selected.name.split(' ')[0]}</p>
+              </div>
+            )}
+            {messages.map((m) => (
+              <div key={m.id} className={`flex ${m.from === 'me' ? 'justify-end' : 'justify-start'}`}>
+                <div
+                  className={`max-w-[70%] px-4 py-2.5 rounded-2xl text-sm ${
+                    m.from === 'me'
+                      ? 'bg-primary text-primary-foreground rounded-br-sm'
+                      : 'bg-secondary text-foreground rounded-bl-sm'
+                  }`}
+                >
+                  <p>{m.text}</p>
+                  <p className={`text-[10px] mt-1 ${m.from === 'me' ? 'text-primary-foreground/60 text-right' : 'text-muted-foreground'}`}>
+                    {m.time}
+                  </p>
+                </div>
+              </div>
+            ))}
+            <div ref={bottomRef} />
+          </div>
+
+          {/* Поле ввода */}
+          <div className="border-t border-border p-4 flex items-end gap-3">
+            <textarea
+              rows={1}
+              placeholder={`Сообщение для ${selected.name.split(' ')[0]}…`}
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); } }}
+              className="flex-1 resize-none rounded-lg border border-border bg-background px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-accent/40 transition max-h-32"
+            />
+            <Button
+              onClick={send}
+              disabled={!text.trim()}
+              className="bg-accent hover:bg-accent/90 text-white h-10 w-10 p-0 shrink-0"
+            >
+              <Icon name="Send" size={18} />
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <div className="flex-1 flex items-center justify-center text-muted-foreground text-sm">
+          Выберите контакт для начала диалога
+        </div>
+      )}
+    </div>
+  );
+};
 
 const ProfileView = () => {
   const [photo, setPhoto] = useState<string | null>(null);
