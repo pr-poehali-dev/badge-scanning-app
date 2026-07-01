@@ -91,7 +91,7 @@ const Index = () => {
           </div>
           <div className="min-w-0">
             <p className="text-sm font-medium truncate">Максим Королёв</p>
-            <p className="text-xs text-primary-foreground/50 truncate">TechConf 2026</p>
+            <p className="text-xs text-primary-foreground/50 truncate">Рынки ЛКМ и сырья</p>
           </div>
         </div>
       </aside>
@@ -103,7 +103,7 @@ const Index = () => {
             <h1 className="font-display font-semibold text-lg text-foreground">
               {NAV.find((n) => n.id === active)?.label}
             </h1>
-            <p className="text-xs text-muted-foreground">Конференция TechConf 2026 · Москва</p>
+            <p className="text-xs text-muted-foreground">Рынки лакокрасочных материалов и сырья для ЛКМ · Москва</p>
           </div>
           <div className="flex items-center gap-3">
             <Button variant="outline" size="sm" className="gap-2">
