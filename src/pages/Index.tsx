@@ -103,7 +103,7 @@ const Index = () => {
             <h1 className="font-display font-semibold text-lg text-foreground">
               {NAV.find((n) => n.id === active)?.label}
             </h1>
-            <p className="text-xs text-muted-foreground">Рынки лакокрасочных материалов и сырья для ЛКМ · Москва</p>
+            <p className="text-xs text-muted-foreground">Рынки лакокрасочных материалов и сырья для ЛКМ · Сочи</p>
           </div>
           <div className="flex items-center gap-3">
             <Button variant="outline" size="sm" className="gap-2">
