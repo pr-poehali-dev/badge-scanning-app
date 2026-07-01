@@ -39,15 +39,32 @@ const MOCK: Contact[] = [
   { id: 4, name: 'Игорь Лебедев', role: 'Head of R&D', company: 'Quantum Labs', email: 'i.lebedev@qlabs.dev', time: '11:52', initials: 'ИЛ' },
 ];
 
+const INITIAL_THREADS: Record<number, Message[]> = {
+  1: [
+    { id: 1, from: 'them', text: 'Добрый день! Рад был познакомиться на конференции.', time: '10:26' },
+    { id: 2, from: 'me', text: 'Взаимно! Очень интересный доклад по ЛКМ-рынку.', time: '10:31' },
+  ],
+};
+
 const Index = () => {
   const [active, setActive] = useState<Section>('scan');
   const [scanning, setScanning] = useState(false);
   const [contacts, setContacts] = useState<Contact[]>(MOCK);
   const [dialogContact, setDialogContact] = useState<Contact | null>(null);
+  const [threads, setThreads] = useState<Record<number, Message[]>>(INITIAL_THREADS);
+  const [readIds, setReadIds] = useState<Set<number>>(new Set([1]));
+
+  const unreadCount = contacts.filter(
+    (c) => threads[c.id] && !readIds.has(c.id)
+  ).length;
 
   const openDialog = (c: Contact) => {
     setDialogContact(c);
     setActive('dialogs');
+  };
+
+  const markRead = (contactId: number) => {
+    setReadIds((prev) => new Set([...prev, contactId]));
   };
 
   const simulateScan = () => {
@@ -93,8 +110,20 @@ const Index = () => {
                   : 'text-primary-foreground/60 hover:bg-white/5 hover:text-white'
               }`}
             >
-              <Icon name={item.icon} size={18} />
+              <div className="relative">
+                <Icon name={item.icon} size={18} />
+                {item.id === 'dialogs' && unreadCount > 0 && (
+                  <span className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-accent text-white text-[10px] font-bold flex items-center justify-center leading-none">
+                    {unreadCount}
+                  </span>
+                )}
+              </div>
               {item.label}
+              {item.id === 'dialogs' && unreadCount > 0 && (
+                <span className="ml-auto bg-accent text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full leading-none">
+                  {unreadCount}
+                </span>
+              )}
             </button>
           ))}
         </nav>
@@ -137,7 +166,15 @@ const Index = () => {
             <ScanView scanning={scanning} onScan={simulateScan} contacts={contacts} />
           )}
           {active === 'contacts' && <ContactsView contacts={contacts} onMessage={openDialog} />}
-          {active === 'dialogs' && <DialogsView contacts={contacts} initialContact={dialogContact} />}
+          {active === 'dialogs' && (
+            <DialogsView
+              contacts={contacts}
+              initialContact={dialogContact}
+              threads={threads}
+              setThreads={setThreads}
+              onRead={markRead}
+            />
+          )}
           {active === 'reports' && <ReportsView contacts={contacts} />}
           {active === 'profile' && <ProfileView />}
           {active === 'settings' && <Placeholder icon="Settings" title="Настройки приложения" />}
@@ -153,7 +190,14 @@ const Index = () => {
                 active === item.id ? 'text-accent' : 'text-muted-foreground'
               }`}
             >
-              <Icon name={item.icon} size={20} />
+              <div className="relative">
+                <Icon name={item.icon} size={20} />
+                {item.id === 'dialogs' && unreadCount > 0 && (
+                  <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-accent text-white text-[9px] font-bold flex items-center justify-center leading-none">
+                    {unreadCount}
+                  </span>
+                )}
+              </div>
               {item.label}
             </button>
           ))}
@@ -340,18 +384,29 @@ const ContactRow = ({ c, onMessage }: { c: Contact; onMessage?: () => void }) =>
   </div>
 );
 
-const DialogsView = ({ contacts, initialContact }: { contacts: Contact[]; initialContact?: Contact | null }) => {
+const DialogsView = ({
+  contacts,
+  initialContact,
+  threads,
+  setThreads,
+  onRead,
+}: {
+  contacts: Contact[];
+  initialContact?: Contact | null;
+  threads: Record<number, Message[]>;
+  setThreads: React.Dispatch<React.SetStateAction<Record<number, Message[]>>>;
+  onRead: (id: number) => void;
+}) => {
   const [selected, setSelected] = useState<Contact | null>(initialContact ?? contacts[0] ?? null);
-  const [threads, setThreads] = useState<Record<number, Message[]>>({
-    1: [
-      { id: 1, from: 'them', text: 'Добрый день! Рад был познакомиться на конференции.', time: '10:26' },
-      { id: 2, from: 'me', text: 'Взаимно! Очень интересный доклад по ЛКМ-рынку.', time: '10:31' },
-    ],
-  });
   const [text, setText] = useState('');
   const bottomRef = useRef<HTMLDivElement>(null);
 
   const messages = selected ? threads[selected.id] ?? [] : [];
+
+  const selectContact = (c: Contact) => {
+    setSelected(c);
+    onRead(c.id);
+  };
 
   const send = () => {
     if (!selected || !text.trim()) return;
@@ -366,6 +421,7 @@ const DialogsView = ({ contacts, initialContact }: { contacts: Contact[]; initia
       ...prev,
       [selected.id]: [...(prev[selected.id] ?? []), msg],
     }));
+    onRead(selected.id);
     setText('');
     setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
   };
@@ -385,7 +441,7 @@ const DialogsView = ({ contacts, initialContact }: { contacts: Contact[]; initia
             return (
               <button
                 key={c.id}
-                onClick={() => setSelected(c)}
+                onClick={() => selectContact(c)}
                 className={`w-full flex items-center gap-3 px-4 py-3 text-left border-b border-border/50 transition-colors ${
                   selected?.id === c.id ? 'bg-secondary' : 'hover:bg-secondary/50'
                 }`}
